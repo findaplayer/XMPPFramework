@@ -969,6 +969,31 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 		}
 	}
 	
+	if([[[[message from] bare] lowercaseString] containsString:@"group"])
+	{
+		NSString *from = [[message from] resource];
+		NSString *to = [[message to] bare];
+		
+		if(from.length > 0)
+		{
+			NSData *base64String = [[NSData alloc] initWithBase64EncodedString:from options:0];
+			from = [[NSString alloc] initWithData:base64String encoding:NSUTF8StringEncoding];
+			
+			NSArray *components = [from componentsSeparatedByString:@":"];
+			NSString *fromUserId = [components firstObject];
+			
+			NSString *toUserId = [[[[to componentsSeparatedByString:@"_"] lastObject] componentsSeparatedByString:@"@"] firstObject];
+			
+			NSLog(@"%@", message.body);
+			
+			if([fromUserId isEqualToString:toUserId])
+			{
+				if([[message elementsForName:@"x"] count] == 0 && [[message elementsForName:@"delay"] count] == 1)
+				return;
+			}
+		}
+	}
+	
 	XMPPStream *xmppStream = room.xmppStream;
 	
 	[self scheduleBlock:^{
