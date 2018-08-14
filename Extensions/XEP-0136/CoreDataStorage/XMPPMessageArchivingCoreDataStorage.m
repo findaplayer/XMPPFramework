@@ -392,6 +392,9 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 	BOOL isComposing = NO;
 	BOOL shouldDeleteComposingMessage = NO;
 	
+	if([message elementForName:@"error"] != nil)
+		return;
+	
 	if (![self messageContainsRelevantContent:message])
 	{
 		// Message doesn't have any content relevant for the module's user.
