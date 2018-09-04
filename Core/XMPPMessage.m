@@ -167,6 +167,11 @@
 	return [[self elementForName:@"body"] stringValue];
 }
 
+-(NSString *)stanzaId
+{
+	return [[[[self elementForName:@"message"] elementForName:@"stanza-id"] elementForName:@"id"] stringValue];
+}
+
 - (NSString *)bodyForLanguage:(NSString *)language
 {
     NSString *bodyForLanguage = nil;

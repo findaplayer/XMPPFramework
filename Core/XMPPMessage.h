@@ -39,13 +39,13 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly, nullable) NSString *subject;
 @property (nonatomic, readonly, nullable) NSString *thread;
 @property (nonatomic, readonly, nullable) NSString *body;
-@property (nonatomic, readonly) NSString *stanzaId;
 - (nullable NSString *)bodyForLanguage:(NSString *)language;
 
 - (void)addSubject:(NSString *)subject;
 - (void)addBody:(NSString *)body;
 - (void)addBody:(NSString *)body withLanguage:(NSString *)language;
 - (void)addThread:(NSString *)thread;
+- (NSString *)stanzaId;
 
 @property (nonatomic, readonly) BOOL isChatMessage;
 @property (nonatomic, readonly) BOOL isChatMessageWithBody;
