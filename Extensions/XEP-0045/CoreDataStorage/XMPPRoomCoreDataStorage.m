@@ -488,6 +488,90 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 /**
  * Optional override hook.
 **/
+
+- (BOOL)removeDuplicatesAndUpdate:(XMPPMessage *)message forRoom:(XMPPRoom *)room stream:(XMPPStream *)xmppStream
+{
+	NSDate *remoteTimestamp = [message delayedDeliveryDate];
+	
+	if (remoteTimestamp == nil)
+	{
+		return NO;
+	}
+	
+	// Does this message already exist in the database?
+	// How can we tell if two XMPPRoomMessages are the same?
+	//
+	// 1. Same streamBareJidStr
+	// 2. Same jid
+	// 3. Same text
+	// 4. Approximately the same timestamps
+	//
+	// This is actually a rather difficult question.
+	// What if the same user sends the exact same message multiple times?
+	//
+	// If we first received the message while already in the room, it won't contain a remoteTimestamp.
+	// Returning to the room later and downloading the discussion history will return the same message,
+	// this time with a remote timestamp.
+	//
+	// So if the message doesn't have a remoteTimestamp,
+	// but it's localTimestamp is approximately the same as the remoteTimestamp,
+	// then this is enough evidence to consider the messages the same.
+	//
+	// Note: Predicate order matters. Most unique key should be first, least unique should be last.
+	
+	NSManagedObjectContext *moc = [self managedObjectContext];
+	NSEntityDescription *messageEntity = [self messageEntity:moc];
+	
+	NSString *streamBareJidStr = [[self myJIDForXMPPStream:xmppStream] bare];
+	
+	XMPPJID *messageJID = [message from];
+	NSString *messageBody = [[message elementForName:@"body"] stringValue];
+	
+	NSDate *minLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval:-60];
+	NSDate *maxLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval: 60];
+	
+	NSString *predicateFormat = @"    body == %@ "
+	@"AND jidStr == %@ "
+	@"AND streamBareJidStr == %@ "
+	@"AND "
+	@"("
+	@"     (remoteTimestamp == %@) "
+	@"  OR (remoteTimestamp == NIL && localTimestamp BETWEEN {%@, %@})"
+	@")";
+	
+	NSPredicate *predicate = [NSPredicate predicateWithFormat:predicateFormat,
+							  messageBody, messageJID, streamBareJidStr,
+							  remoteTimestamp, minLocalTimestamp, maxLocalTimestamp];
+	
+	NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
+	[fetchRequest setEntity:messageEntity];
+	[fetchRequest setPredicate:predicate];
+	
+	BOOL found = NO;
+	NSError *error = nil;
+	NSMutableArray *results = [moc executeFetchRequest:fetchRequest error:&error];
+	
+	if([results count] > 0)
+	{
+		if([results count] > 1)
+		{
+			for (int i=1; i<[results count]; i++)
+			{
+				[moc deleteObject:[results objectAtIndex:i]];
+			}
+		}
+		XMPPRoomMessageCoreDataStorageObject *object = [results firstObject];
+		
+		if(object.message.stanzaId == nil)
+		{
+			found = YES;
+			[object setMessage:message];
+		}
+	}
+	
+	return found;
+}
+
 - (BOOL)existsMessage:(XMPPMessage *)message forRoom:(XMPPRoom *)room stream:(XMPPStream *)xmppStream
 {
 	NSDate *remoteTimestamp = [message delayedDeliveryDate];
@@ -503,23 +587,23 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	
 	// Does this message already exist in the database?
 	// How can we tell if two XMPPRoomMessages are the same?
-	// 
+	//
 	// 1. Same streamBareJidStr
 	// 2. Same jid
 	// 3. Same text
 	// 4. Approximately the same timestamps
-	// 
+	//
 	// This is actually a rather difficult question.
 	// What if the same user sends the exact same message multiple times?
-	// 
+	//
 	// If we first received the message while already in the room, it won't contain a remoteTimestamp.
 	// Returning to the room later and downloading the discussion history will return the same message,
 	// this time with a remote timestamp.
-	// 
+	//
 	// So if the message doesn't have a remoteTimestamp,
 	// but it's localTimestamp is approximately the same as the remoteTimestamp,
 	// then this is enough evidence to consider the messages the same.
-	// 
+	//
 	// Note: Predicate order matters. Most unique key should be first, least unique should be last.
 	
 	NSManagedObjectContext *moc = [self managedObjectContext];
@@ -533,24 +617,18 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	NSDate *minLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval:-60];
 	NSDate *maxLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval: 60];
 	
-	NSString *predicateFormat = @"    body == %@ "
-	                            @"AND jidStr == %@ "
-	                            @"AND streamBareJidStr == %@ "
-	                            @"AND "
-	                            @"("
-	                            @"     (remoteTimestamp == %@) "
-	                            @"  OR (remoteTimestamp == NIL && localTimestamp BETWEEN {%@, %@})"
-	                            @")";
+	__block NSString *stanzaId = [message stanzaId];
+	
+	NSString *predicateFormat = @"body == %@";
 	
 	NSPredicate *predicate = [NSPredicate predicateWithFormat:predicateFormat,
-	                             messageBody, messageJID, streamBareJidStr,
-	                             remoteTimestamp, minLocalTimestamp, maxLocalTimestamp];
+							  messageBody, stanzaId];
 	
 	NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
 	[fetchRequest setEntity:messageEntity];
 	[fetchRequest setPredicate:predicate];
 	[fetchRequest setFetchLimit:1];
-		
+	
 	NSError *error = nil;
 	NSArray *results = [moc executeFetchRequest:fetchRequest error:&error];
 	
@@ -558,6 +636,12 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	{
 		XMPPLogError(@"%@: %@ - Fetch error: %@", THIS_FILE, THIS_METHOD, error);
 	}
+	
+	results = [results filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(XMPPRoomMessageCoreDataStorageObject *_Nullable object, NSDictionary<NSString *,id> * _Nullable bindings)
+													{
+														NSString *stanza = object.message.stanzaId;
+														return (stanza != nil && [stanza isEqualToString:stanzaId]);
+													}]];
 	
 	return ([results count] > 0);
 }
@@ -998,7 +1082,11 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	
 	[self scheduleBlock:^{
 		
-		if ([self existsMessage:message forRoom:room stream:xmppStream])
+		if ([self removeDuplicatesAndUpdate:message forRoom:room stream:xmppStream])
+		{
+			XMPPLogVerbose(@"%@: %@ - Found with no stanza", THIS_FILE, THIS_METHOD);
+		}
+		else if ([self existsMessage:message forRoom:room stream:xmppStream])
 		{
 			XMPPLogVerbose(@"%@: %@ - Duplicate message", THIS_FILE, THIS_METHOD);
 		}

@@ -39,6 +39,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly, nullable) NSString *subject;
 @property (nonatomic, readonly, nullable) NSString *thread;
 @property (nonatomic, readonly, nullable) NSString *body;
+@property (nonatomic, readonly, nullable) NSString *stanzaId;
 - (nullable NSString *)bodyForLanguage:(NSString *)language;
 
 - (void)addSubject:(NSString *)subject;
