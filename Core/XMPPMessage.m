@@ -169,7 +169,7 @@
 
 -(NSString *)stanzaId
 {
-	return [[[[self elementForName:@"message"] elementForName:@"stanza-id"] elementForName:@"id"] stringValue];
+	return [[[self elementForName:@"stanza-id"] attributeForName:@"id"] stringValue];
 }
 
 - (NSString *)bodyForLanguage:(NSString *)language
