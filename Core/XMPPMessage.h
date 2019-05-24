@@ -52,6 +52,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL isChatMessageWithBody;
 @property (nonatomic, readonly) BOOL isErrorMessage;
 @property (nonatomic, readonly) BOOL isMessageWithBody;
+@property (nonatomic, readonly) BOOL isOfflineMessage;
 
 @property (nonatomic, readonly, nullable) NSError *errorMessage;
 

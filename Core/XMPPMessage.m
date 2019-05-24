@@ -269,4 +269,18 @@
 	return ([self elementForName:@"body"] != nil);
 }
 
+- (BOOL)isOfflineMessage
+{
+	for (NSXMLElement *element in [self elementsForName:@"delay"])
+	{
+		for (DDXMLNode *node in element.children)
+		{
+			if([[node stringValue] isEqualToString:@"Offline storage"])
+				return YES;
+		}
+	}
+	
+	return NO;
+}
+
 @end

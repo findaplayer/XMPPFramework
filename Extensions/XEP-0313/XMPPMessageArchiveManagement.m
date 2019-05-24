@@ -222,4 +222,15 @@ static NSString *const QueryIdAttributeName = @"queryid";
     }
 }
 
++(BOOL)isMAMMessage:(XMPPMessage *)message
+{
+	NSArray *elements = [message elementsForName:@"delay"];
+	for (NSXMLElement *element in elements)
+	{
+		if([element attributeForName:@"from"])
+			return YES;
+	}
+	return message.mamResult.hasForwardedStanza == YES;
+}
+
 @end
