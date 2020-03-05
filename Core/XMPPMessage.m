@@ -233,7 +233,7 @@
 
 -(void)setReadStatus:(BOOL)read
 {
-	[self addAttributeWithName:@"read" boolValue:read];
+	[self addAttributeWithName:@"read" stringValue:(read) ? @"true":@"false"];
 }
 
 - (BOOL)isChatMessage
@@ -290,7 +290,7 @@
 
 -(BOOL)hasBeenRead
 {
-	return [[self elementForName:@"read"] boolValue];
+	return [[self attributeForName:@"read"].stringValue isEqualToString:@"true"];
 }
 
 @end
