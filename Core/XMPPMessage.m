@@ -231,6 +231,11 @@
     [self addChild:threadElement];
 }
 
+-(void)setReadStatus:(BOOL)read
+{
+	[self addAttributeWithName:@"read" stringValue:(read) ? : @"true":@"false"];
+}
+
 - (BOOL)isChatMessage
 {
 	return [[[self attributeForName:@"type"] stringValue] isEqualToString:@"chat"];
@@ -281,6 +286,11 @@
 	}
 	
 	return NO;
+}
+
+-(BOOL)hasBeenRead
+{
+	return ([[[self elementForName:@"read"] stringValue] isEqualToString:@"true"]);
 }
 
 @end

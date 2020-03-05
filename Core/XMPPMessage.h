@@ -46,6 +46,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)addBody:(NSString *)body;
 - (void)addBody:(NSString *)body withLanguage:(NSString *)language;
 - (void)addThread:(NSString *)thread;
+- (void)setReadStatus:(BOOL)read;
 - (NSString *)stanzaId;
 
 @property (nonatomic, readonly) BOOL isChatMessage;
@@ -53,6 +54,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL isErrorMessage;
 @property (nonatomic, readonly) BOOL isMessageWithBody;
 @property (nonatomic, readonly) BOOL isOfflineMessage;
+@property (nonatomic, readonly) BOOL hasBeenRead;
 
 @property (nonatomic, readonly, nullable) NSError *errorMessage;
 
