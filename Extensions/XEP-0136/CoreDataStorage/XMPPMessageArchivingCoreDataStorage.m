@@ -11,16 +11,16 @@
 // Log levels: off, error, warn, info, verbose
 // Log flags: trace
 #if DEBUG
-  static const int xmppLogLevel = XMPP_LOG_LEVEL_WARN; // VERBOSE; // | XMPP_LOG_FLAG_TRACE;
+static const int xmppLogLevel = XMPP_LOG_LEVEL_WARN; // VERBOSE; // | XMPP_LOG_FLAG_TRACE;
 #else
-  static const int xmppLogLevel = XMPP_LOG_LEVEL_WARN;
+static const int xmppLogLevel = XMPP_LOG_LEVEL_WARN;
 #endif
 
 @interface XMPPMessageArchivingCoreDataStorage ()
 {
 	NSString *messageEntityName;
 	NSString *contactEntityName;
-    NSArray<NSString *> *relevantContentXPaths;
+	NSArray<NSString *> *relevantContentXPaths;
 }
 
 @end
@@ -46,30 +46,30 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 
 /**
  * Documentation from the superclass (XMPPCoreDataStorage):
- * 
+ *
  * If your subclass needs to do anything for init, it can do so easily by overriding this method.
  * All public init methods will invoke this method at the end of their implementation.
- * 
+ *
  * Important: If overriden you must invoke [super commonInit] at some point.
-**/
+ **/
 - (void)commonInit
 {
 	[super commonInit];
 	
 	messageEntityName = @"XMPPMessageArchiving_Message_CoreDataObject";
 	contactEntityName = @"XMPPMessageArchiving_Contact_CoreDataObject";
-    
-    relevantContentXPaths = @[@"./*[local-name()='body']"];
+	
+	relevantContentXPaths = @[@"./*[local-name()='body']"];
 }
 
 /**
  * Documentation from the superclass (XMPPCoreDataStorage):
- * 
+ *
  * Override me, if needed, to provide customized behavior.
  * For example, you may want to perform cleanup of any non-persistent data before you start using the database.
- * 
+ *
  * The default implementation does nothing.
-**/
+ **/
 - (void)didCreateManagedObjectContext
 {
 	// If there are any "composing" messages in the database, delete them (as they are temporary).
@@ -152,10 +152,42 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 #pragma mark Private API
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+- (XMPPMessageArchiving_Message_CoreDataObject *)existingMessageWithStanzaId:(NSString *)stanzaId
+														managedObjectContext:(NSManagedObjectContext *)moc
+{
+	XMPPMessageArchiving_Message_CoreDataObject *result = nil;
+	
+	NSEntityDescription *messageEntity = [self messageEntity:moc];
+	
+	NSString *predicateFrmt = @"stanzaId == %@";
+	NSPredicate *predicate = [NSPredicate predicateWithFormat:predicateFrmt,
+							  stanzaId];
+	
+	NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"timestamp" ascending:NO];
+	
+	NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
+	fetchRequest.entity = messageEntity;
+	fetchRequest.predicate = predicate;
+	fetchRequest.sortDescriptors = @[sortDescriptor];
+	fetchRequest.fetchLimit = 1;
+	
+	NSError *error = nil;
+	NSArray *results = [moc executeFetchRequest:fetchRequest error:&error];
+	
+	if(error)
+		XMPPLogError(@"%@: %@ - Error executing fetchRequest: %@", THIS_FILE, THIS_METHOD, fetchRequest);
+	else if (results.count == 0)
+		return nil;
+	else
+		result = (XMPPMessageArchiving_Message_CoreDataObject *)[results lastObject];
+	
+	return result;
+}
+
 - (XMPPMessageArchiving_Message_CoreDataObject *)composingMessageWithJid:(XMPPJID *)messageJid
-                                                               streamJid:(XMPPJID *)streamJid
-                                                                outgoing:(BOOL)isOutgoing
-                                                    managedObjectContext:(NSManagedObjectContext *)moc
+															   streamJid:(XMPPJID *)streamJid
+																outgoing:(BOOL)isOutgoing
+													managedObjectContext:(NSManagedObjectContext *)moc
 {
 	XMPPMessageArchiving_Message_CoreDataObject *result = nil;
 	
@@ -169,8 +201,8 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 	
 	NSString *predicateFrmt = @"composing == YES AND bareJidStr == %@ AND outgoing == %@ AND streamBareJidStr == %@";
 	NSPredicate *predicate = [NSPredicate predicateWithFormat:predicateFrmt,
-                                                            [messageJid bare], @(isOutgoing),
-                                                            [streamJid bare]];
+							  [messageJid bare], @(isOutgoing),
+							  [streamJid bare]];
 	
 	NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"timestamp" ascending:NO];
 	
@@ -197,22 +229,22 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 
 - (BOOL)messageContainsRelevantContent:(XMPPMessage *)message
 {
-    for (NSString *XPath in self.relevantContentXPaths) {
-        NSError *error;
-        NSArray *nodes = [message nodesForXPath:XPath error:&error];
-        if (!nodes) {
-            XMPPLogError(@"%@: %@ - Error querying XPath (%@): %@", THIS_FILE, THIS_METHOD, XPath, error);
-            continue;
-        }
-        
-        for (NSXMLNode *node in nodes) {
-            if (node.stringValue.length > 0) {
-                return YES;
-            }
-        }
-    }
-    
-    return NO;
+	for (NSString *XPath in self.relevantContentXPaths) {
+		NSError *error;
+		NSArray *nodes = [message nodesForXPath:XPath error:&error];
+		if (!nodes) {
+			XMPPLogError(@"%@: %@ - Error querying XPath (%@): %@", THIS_FILE, THIS_METHOD, XPath, error);
+			continue;
+		}
+		
+		for (NSXMLNode *node in nodes) {
+			if (node.stringValue.length > 0) {
+				return YES;
+			}
+		}
+	}
+	
+	return NO;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -224,22 +256,22 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 	// Potential override hook
 	
 	return [self contactWithBareJidStr:msg.bareJidStr
-	                  streamBareJidStr:msg.streamBareJidStr
-	              managedObjectContext:msg.managedObjectContext];
+					  streamBareJidStr:msg.streamBareJidStr
+				  managedObjectContext:msg.managedObjectContext];
 }
 
 - (XMPPMessageArchiving_Contact_CoreDataObject *)contactWithJid:(XMPPJID *)contactJid
-                                                      streamJid:(XMPPJID *)streamJid
-                                           managedObjectContext:(NSManagedObjectContext *)moc
+													  streamJid:(XMPPJID *)streamJid
+										   managedObjectContext:(NSManagedObjectContext *)moc
 {
 	return [self contactWithBareJidStr:[contactJid bare]
-	                  streamBareJidStr:[streamJid bare]
-	              managedObjectContext:moc];
+					  streamBareJidStr:[streamJid bare]
+				  managedObjectContext:moc];
 }
 
 - (XMPPMessageArchiving_Contact_CoreDataObject *)contactWithBareJidStr:(NSString *)contactBareJidStr
-                                                      streamBareJidStr:(NSString *)streamBareJidStr
-                                                  managedObjectContext:(NSManagedObjectContext *)moc
+													  streamBareJidStr:(NSString *)streamBareJidStr
+												  managedObjectContext:(NSManagedObjectContext *)moc
 {
 	NSEntityDescription *entity = [self contactEntity:moc];
 	
@@ -247,7 +279,7 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 	if (streamBareJidStr)
 	{
 		predicate = [NSPredicate predicateWithFormat:@"bareJidStr == %@ AND streamBareJidStr == %@",
-	                                                              contactBareJidStr, streamBareJidStr];
+					 contactBareJidStr, streamBareJidStr];
 	}
 	else
 	{
@@ -347,32 +379,32 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 
 - (NSArray<NSString *> *)relevantContentXPaths
 {
-    __block NSArray *result;
-    
-    dispatch_block_t block = ^{
-        result = relevantContentXPaths;
-    };
-    
-    if (dispatch_get_specific(storageQueueTag))
-        block();
-    else
-        dispatch_sync(storageQueue, block);
-    
-    return result;
+	__block NSArray *result;
+	
+	dispatch_block_t block = ^{
+		result = relevantContentXPaths;
+	};
+	
+	if (dispatch_get_specific(storageQueueTag))
+		block();
+	else
+		dispatch_sync(storageQueue, block);
+	
+	return result;
 }
 
 - (void)setRelevantContentXPaths:(NSArray<NSString *> *)relevantContentXPathsToSet
 {
-    NSArray *newValue = [relevantContentXPathsToSet copy];
-    
-    dispatch_block_t block = ^{
-        relevantContentXPaths = newValue;
-    };
-    
-    if (dispatch_get_specific(storageQueueTag))
-        block();
-    else
-        dispatch_async(storageQueue, block);
+	NSArray *newValue = [relevantContentXPathsToSet copy];
+	
+	dispatch_block_t block = ^{
+		relevantContentXPaths = newValue;
+	};
+	
+	if (dispatch_get_specific(storageQueueTag))
+		block();
+	else
+		dispatch_async(storageQueue, block);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -429,10 +461,10 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 		// Fetch-n-Update OR Insert new message
 		
 		XMPPMessageArchiving_Message_CoreDataObject *archivedMessage =
-		    [self composingMessageWithJid:messageJid
-		                        streamJid:myJid
-		                         outgoing:isOutgoing
-		             managedObjectContext:moc];
+		[self composingMessageWithJid:messageJid
+							streamJid:myJid
+							 outgoing:isOutgoing
+				 managedObjectContext:moc];
 		
 		if (shouldDeleteComposingMessage)
 		{
@@ -451,13 +483,19 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 			XMPPLogVerbose(@"Previous archivedMessage: %@", archivedMessage);
 			
 			BOOL didCreateNewArchivedMessage = NO;
+			
 			if (archivedMessage == nil)
 			{
-				archivedMessage = (XMPPMessageArchiving_Message_CoreDataObject *)
-					[[NSManagedObject alloc] initWithEntity:[self messageEntity:moc]
-				             insertIntoManagedObjectContext:nil];
+				archivedMessage = [self existingMessageWithStanzaId:[[message elementForName:@"stanza-id"] stringValue] managedObjectContext:self.managedObjectContext];
 				
-				didCreateNewArchivedMessage = YES;
+				if(!archivedMessage)
+				{
+					archivedMessage = (XMPPMessageArchiving_Message_CoreDataObject *)
+					[[NSManagedObject alloc] initWithEntity:[self messageEntity:moc]
+							 insertIntoManagedObjectContext:nil];
+					
+					didCreateNewArchivedMessage = YES;
+				}
 			}
 			
 			archivedMessage.message = message;
@@ -477,7 +515,7 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 			archivedMessage.isComposing = isComposing;
 			
 			XMPPLogVerbose(@"New archivedMessage: %@", archivedMessage);
-														 
+			
 			if (didCreateNewArchivedMessage) // [archivedMessage isInserted] doesn't seem to work
 			{
 				XMPPLogVerbose(@"Inserting message...");
@@ -506,15 +544,15 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 				if (contact == nil)
 				{
 					contact = (XMPPMessageArchiving_Contact_CoreDataObject *)
-					    [[NSManagedObject alloc] initWithEntity:[self contactEntity:moc]
-					             insertIntoManagedObjectContext:nil];
+					[[NSManagedObject alloc] initWithEntity:[self contactEntity:moc]
+							 insertIntoManagedObjectContext:nil];
 					
 					didCreateNewContact = YES;
 				}
 				
 				contact.streamBareJidStr = archivedMessage.streamBareJidStr;
 				contact.bareJid = archivedMessage.bareJid;
-					
+				
 				contact.mostRecentMessageTimestamp = archivedMessage.timestamp;
 				contact.mostRecentMessageBody = archivedMessage.body;
 				contact.mostRecentMessageOutgoing = @(isOutgoing);
