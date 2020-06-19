@@ -155,6 +155,8 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 - (XMPPMessageArchiving_Message_CoreDataObject *)existingMessageWithStanzaId:(NSString *)stanzaId
 														managedObjectContext:(NSManagedObjectContext *)moc
 {
+	if(!stanzaId)
+		return nil;
 	XMPPMessageArchiving_Message_CoreDataObject *result = nil;
 	
 	NSEntityDescription *messageEntity = [self messageEntity:moc];
@@ -486,7 +488,8 @@ static XMPPMessageArchivingCoreDataStorage *sharedInstance;
 			
 			if (archivedMessage == nil)
 			{
-				archivedMessage = [self existingMessageWithStanzaId:[[message elementForName:@"stanza-id"] stringValue] managedObjectContext:self.managedObjectContext];
+				NSString *stanza_id = [[message elementForName:@"stanza-id"] stringValue];
+				archivedMessage = [self existingMessageWithStanzaId:stanza_id managedObjectContext:self.managedObjectContext];
 				
 				if(!archivedMessage)
 				{
