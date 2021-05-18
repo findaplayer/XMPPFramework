@@ -1082,11 +1082,7 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	
 	[self scheduleBlock:^{
 		
-		if ([self removeDuplicatesAndUpdate:message forRoom:room stream:xmppStream])
-		{
-			XMPPLogVerbose(@"%@: %@ - Found with no stanza", THIS_FILE, THIS_METHOD);
-		}
-		else if ([self existsMessage:message forRoom:room stream:xmppStream])
+		if ([self existsMessage:message forRoom:room stream:xmppStream])
 		{
 			XMPPLogVerbose(@"%@: %@ - Duplicate message", THIS_FILE, THIS_METHOD);
 		}
