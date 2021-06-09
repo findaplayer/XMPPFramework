@@ -360,6 +360,8 @@ static NSMutableSet *databaseFileNames;
 		[[NSFileManager defaultManager] removeItemAtPath:url.absoluteString error:nil];
 	}
 	[self addStoreToPSC];
+	if(completion)
+		completion(YES);
 }
 
 -(void)addStoreToPSC
