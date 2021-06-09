@@ -351,6 +351,75 @@ static NSMutableSet *databaseFileNames;
 		dispatch_async(storageQueue, block);
 }
 
+-(void)wipeDataStore:(void (^)(BOOL))completion
+{
+	for (NSPersistentStore *store in self.persistentStoreCoordinator.persistentStores)
+	{
+		NSURL *url = store.URL;
+		[self.persistentStoreCoordinator removePersistentStore:store error:nil];
+		[[NSFileManager defaultManager] removeItemAtPath:url.absoluteString error:nil];
+	}
+	[self addStoreToPSC];
+}
+
+-(void)addStoreToPSC
+{
+	if (databaseFileName)
+	{
+		// SQLite persistent store
+		
+		NSString *docsPath = [self persistentStoreDirectory];
+		NSString *storePath = [docsPath stringByAppendingPathComponent:databaseFileName];
+		if (storePath)
+		{
+			// If storePath is nil, then NSURL will throw an exception
+			
+			if(autoRemovePreviousDatabaseFile)
+			{
+				if ([[NSFileManager defaultManager] fileExistsAtPath:storePath])
+				{
+					[[NSFileManager defaultManager] removeItemAtPath:storePath error:nil];
+				}
+			}
+			
+			[self willCreatePersistentStoreWithPath:storePath options:storeOptions];
+			
+			NSError *error = nil;
+			
+			BOOL didAddPersistentStore = [self addPersistentStoreWithPath:storePath options:storeOptions error:&error];
+			
+			if(autoRecreateDatabaseFile && !didAddPersistentStore)
+			{
+				[[NSFileManager defaultManager] removeItemAtPath:storePath error:NULL];
+				
+				didAddPersistentStore = [self addPersistentStoreWithPath:storePath options:storeOptions error:&error];
+			}
+			
+			if (!didAddPersistentStore)
+			{
+				[self didNotAddPersistentStoreWithPath:storePath options:storeOptions error:error];
+			}
+		}
+		else
+		{
+			XMPPLogWarn(@"%@: Error creating persistentStoreCoordinator - Nil persistentStoreDirectory",
+						[self class]);
+		}
+	}
+	else
+	{
+		// In-Memory persistent store
+		
+		[self willCreatePersistentStoreWithPath:nil options:storeOptions];
+		
+		NSError *error = nil;
+		if (![self addPersistentStoreWithPath:nil options:storeOptions error:&error])
+		{
+			[self didNotAddPersistentStoreWithPath:nil options:storeOptions error:error];
+		}
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark Stream JID Caching
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -567,60 +636,7 @@ static NSMutableSet *databaseFileNames;
 		
 		persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:mom];
 		
-		if (databaseFileName)
-		{
-			// SQLite persistent store
-			
-			NSString *docsPath = [self persistentStoreDirectory];
-			NSString *storePath = [docsPath stringByAppendingPathComponent:databaseFileName];
-			if (storePath)
-			{
-				// If storePath is nil, then NSURL will throw an exception
-                
-                if(autoRemovePreviousDatabaseFile)
-                {
-                    if ([[NSFileManager defaultManager] fileExistsAtPath:storePath])
-                    {
-                        [[NSFileManager defaultManager] removeItemAtPath:storePath error:nil];
-                    }
-                }
-				
-				[self willCreatePersistentStoreWithPath:storePath options:storeOptions];
-				
-				NSError *error = nil;
-				
-				BOOL didAddPersistentStore = [self addPersistentStoreWithPath:storePath options:storeOptions error:&error];
-				
-				if(autoRecreateDatabaseFile && !didAddPersistentStore)
-				{
-					[[NSFileManager defaultManager] removeItemAtPath:storePath error:NULL];
-					
-					didAddPersistentStore = [self addPersistentStoreWithPath:storePath options:storeOptions error:&error];
-				}
-				
-				if (!didAddPersistentStore)
-				{
-					[self didNotAddPersistentStoreWithPath:storePath options:storeOptions error:error];
-				}
-			}
-			else
-			{
-				XMPPLogWarn(@"%@: Error creating persistentStoreCoordinator - Nil persistentStoreDirectory",
-							[self class]);
-			}
-		}
-		else
-		{
-			// In-Memory persistent store
-			
-			[self willCreatePersistentStoreWithPath:nil options:storeOptions];
-			
-			NSError *error = nil;
-			if (![self addPersistentStoreWithPath:nil options:storeOptions error:&error])
-			{
-				[self didNotAddPersistentStoreWithPath:nil options:storeOptions error:error];
-			}
-		}
+		[self addStoreToPSC];
 		
 		result = persistentStoreCoordinator;
 		

@@ -84,6 +84,8 @@
 **/
 - (id)initWithInMemoryStore;
 
+-(void)wipeDataStore:(void (^)(BOOL success))completion;
+
 /**
  * Readonly access to the databaseFileName used during initialization.
  * If nil was passed to the init method, returns the actual databaseFileName being used (the default filename).
